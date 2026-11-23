@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.pytest_cache/
+data/raw/
+data/processed/
+mlruns/
+.env
+.claude/
+.idea/
+.playwright-mcp/
+
+# personal notes, not part of the project
+docs/ideas/
+docs/plan_az.csv
+docs/teqdimat_izahi.md

@@ -1,0 +1,11 @@
+# Local run:       docker compose up --build        -> http://127.0.0.1:8080
+# Production:      see deploy/README.md (adds Caddy for HTTPS)
+services:
+  api:
+    build: .
+    image: uplift-api:latest
+    restart: unless-stopped
+    environment:
+      UPLIFT_API_KEY: ${UPLIFT_API_KEY:-}
+    ports:
+      - "127.0.0.1:8080:8000"

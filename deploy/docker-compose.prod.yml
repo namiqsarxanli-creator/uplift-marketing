@@ -1,0 +1,29 @@
+# Production: API behind Caddy, which obtains and renews HTTPS certificates automatically.
+#   DOMAIN=uplift.example.com UPLIFT_API_KEY=... docker compose -f deploy/docker-compose.prod.yml up -d --build
+services:
+  api:
+    build: ..
+    image: uplift-api:latest
+    restart: unless-stopped
+    environment:
+      UPLIFT_API_KEY: ${UPLIFT_API_KEY:?set UPLIFT_API_KEY}
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2.10
+    restart: unless-stopped
+    depends_on: [api]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

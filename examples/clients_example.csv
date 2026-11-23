@@ -1,0 +1,5 @@
+client_id,age,gender,card_age_days,days_since_first_redeem,n_transactions,total_spend,avg_basket,avg_items,n_stores,points_received,points_spent,days_since_last_purchase,days_since_first_purchase,segment
+demo-001,64,F,200,150,8,2200,275,5.5,2,25,20,8,110,newsletter
+demo-002,38,M,600,500,40,24000,600,9,4,250,200,1,117,vip
+demo-003,,U,450,,15,6100,407,6.6,2,49,0,5,111,
+demo-004,29,F,90,60,6,1500,250,4,1,15,10,12,80,students

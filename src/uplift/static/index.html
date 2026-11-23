@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uplift Campaign Planner</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M2 13 L7 8 L10 10 L14 4' stroke='%232f5f98' stroke-width='2.2' fill='none'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f7f7f5; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6b66; --line: #e3e2dc;
+    --accent: #2f5f98; --accent-soft: #e6eef8; --good: #2e7d4f; --bad: #b3412e; --hold: #b07d16;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151614; --panel: #1f201d; --ink: #ecebe6; --muted: #a09f98; --line: #34352f;
+            --accent: #7fa8dc; --accent-soft: #23303f; --good: #6cc191; --bad: #e58a77; --hold: #e0b45a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 28px 16px 60px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .lead { color: var(--muted); margin: 0 0 22px; max-width: 760px; }
+  .grid { display: grid; grid-template-columns: 320px 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; }
+  label { display: block; font-size: 13px; margin: 12px 0 4px; }
+  label span { float: right; font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  input[type=text], input[type=password], input[type=number] { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+  button, .file { display: inline-block; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--accent); background: var(--accent); color: #fff; font-weight: 600; cursor: pointer; font-size: 13px; }
+  button.secondary, .file { background: transparent; color: var(--accent); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .file input { display: none; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .card .k { font-size: 12px; color: var(--muted); }
+  .card .v { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .v.good { color: var(--good); } .v.bad { color: var(--bad); }
+  svg { width: 100%; height: auto; display: block; }
+  .axis { stroke: var(--line); } .tick { fill: var(--muted); font-size: 11px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  .tag { padding: 1px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .tag.contact { background: var(--accent-soft); color: var(--accent); }
+  .tag.holdout { color: var(--hold); border: 1px solid var(--hold); }
+  .tag.skip { color: var(--muted); border: 1px solid var(--line); }
+  .status { font-size: 13px; color: var(--muted); min-height: 20px; }
+  .err { color: var(--bad); }
+  footer { margin-top: 28px; font-size: 12px; color: var(--muted); }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Uplift Campaign Planner</h1>
+  <p class="lead">Who should get the SMS? The model estimates how much contacting each client <em>changes</em> the chance
+    they buy, then picks the contact list that maximises profit for your costs. Clients who would buy anyway are
+    not worth a coupon.</p>
+
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h2>Clients</h2>
+        <div class="row">
+          <button id="sample">Load 2,000 synthetic clients</button>
+          <label class="file">Upload CSV<input type="file" id="csv" accept=".csv,text/csv"></label>
+        </div>
+        <div class="hint">Synthetic clients are drawn from aggregated training statistics, not real customers.
+          CSV columns: see <a href="/docs">/docs</a> or <code>examples/clients_example.csv</code> in the repository.</div>
+        <label for="key">API key (if the server requires one)</label>
+        <input type="password" id="key" autocomplete="off" placeholder="X-API-Key">
+      </div>
+
+      <div class="panel" style="margin-top:14px">
+        <h2>Economics</h2>
+        <label>Value of one extra purchase <span id="value_v"></span></label>
+        <input type="range" id="value" min="10" max="300" step="5" value="100">
+        <label>Cost per SMS <span id="cost_v"></span></label>
+        <input type="range" id="cost" min="0" max="20" step="0.5" value="2">
+        <label>Coupon redeemed by each contacted buyer <span id="discount_v"></span></label>
+        <input type="range" id="discount" min="0" max="30" step="1" value="10">
+        <label>Budget cap (empty = no cap)</label>
+        <input type="number" id="budget" min="0" step="100" placeholder="no cap">
+        <label>Holdout for measuring the real effect <span id="holdout_v"></span></label>
+        <input type="range" id="holdout" min="0" max="0.3" step="0.05" value="0.1">
+      </div>
+    </div>
+
+    <div>
+      <div class="status" id="status">Load clients to start.</div>
+      <div class="cards" id="cards"></div>
+      <div class="panel">
+        <h2>Expected profit by how many clients you contact</h2>
+        <svg id="chart" viewBox="0 0 640 260" role="img" aria-label="Expected profit curve"></svg>
+        <div class="hint">Clients are added in order of expected profit. The dot marks the recommended list; the dashed
+          line is what contacting everyone would earn.</div>
+      </div>
+      <div class="panel" style="margin-top:14px">
+        <h2>Top of the list</h2>
+        <table id="table"><thead><tr><th>Client</th><th>Group</th><th>Effect, pp</th><th>Expected profit</th></tr></thead><tbody></tbody></table>
+        <div class="row"><button class="secondary" id="download" disabled>Download plan CSV</button></div>
+      </div>
+    </div>
+  </div>
+
+  <footer id="footer">Logistic T-learner trained on a randomised retail SMS campaign.
+    <a href="/docs">API docs</a> · <a href="/health">health</a></footer>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let clients = [], lastPlan = null, timer = null;
+const fmt = (x, d = 0) => Number(x).toLocaleString(undefined, { maximumFractionDigits: d, minimumFractionDigits: d });
+
+function store(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
+function load(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }
+$("key").value = load("uplift-key") || "";
+$("key").addEventListener("change", () => { store("uplift-key", $("key").value); schedule(); });
+
+function headers() {
+  const h = { "Content-Type": "application/json" };
+  if ($("key").value) h["X-API-Key"] = $("key").value;
+  return h;
+}
+
+function setLabels() {
+  $("value_v").textContent = fmt($("value").value);
+  $("cost_v").textContent = fmt($("cost").value, 1);
+  $("discount_v").textContent = fmt($("discount").value);
+  $("holdout_v").textContent = Math.round($("holdout").value * 100) + "%";
+}
+["value", "cost", "discount", "holdout", "budget"].forEach(id => $(id).addEventListener("input", () => { setLabels(); schedule(); }));
+setLabels();
+
+function schedule() { clearTimeout(timer); timer = setTimeout(plan, 250); }
+
+$("sample").onclick = async () => {
+  $("status").textContent = "Loading synthetic clients…";
+  const r = await fetch("/demo/sample?n=2000&seed=" + Math.floor(Math.random() * 1000));
+  clients = await r.json();
+  plan();
+};
+
+const NUM = ["age", "card_age_days", "days_since_first_redeem", "n_transactions", "total_spend", "avg_basket", "avg_items",
+             "n_stores", "points_received", "points_spent", "days_since_last_purchase", "days_since_first_purchase"];
+const FIELDS = ["client_id", "gender", ...NUM];
+$("csv").onchange = async (e) => {
+  const text = await e.target.files[0].text();
+  const [head, ...lines] = text.trim().split(/\r?\n/);
+  const cols = head.split(",").map(s => s.trim());
+  clients = lines.filter(Boolean).map(line => {
+    const vals = line.split(","), o = {};
+    cols.forEach((c, i) => {
+      if (!FIELDS.includes(c)) return;
+      const v = (vals[i] ?? "").trim();
+      if (v === "") return;
+      o[c] = NUM.includes(c) ? Number(v) : v;
+    });
+    return o;
+  });
+  if (clients.length > 10000) { clients = clients.slice(0, 10000); }
+  plan();
+};
+
+async function plan() {
+  if (!clients.length) return;
+  $("status").textContent = `Planning for ${fmt(clients.length)} clients…`;
+  const budget = $("budget").value === "" ? null : Number($("budget").value);
+  const body = { clients, budget, holdout_share: Number($("holdout").value),
+                 economics: { value: Number($("value").value), cost_per_contact: Number($("cost").value), discount: Number($("discount").value) } };
+  const r = await fetch("/plan", { method: "POST", headers: headers(), body: JSON.stringify(body) });
+  if (!r.ok) {
+    const msg = r.status === 401 ? "The server requires an API key." : `Request failed (${r.status}): ${(await r.text()).slice(0, 300)}`;
+    $("status").innerHTML = `<span class="err">${msg}</span>`; return;
+  }
+  lastPlan = await r.json();
+  render(lastPlan);
+}
+
+function render(p) {
+  const s = p.summary;
+  $("status").textContent = `${fmt(s.clients)} clients scored.`;
+  const delta = s.expected_profit - s.profit_if_everyone_contacted;
+  $("cards").innerHTML = [
+    ["Contact", fmt(s.contacted), ""],
+    ["Expected extra purchases", fmt(s.expected_extra_purchases, 1), ""],
+    ["Expected profit", fmt(s.expected_profit), s.expected_profit >= 0 ? "good" : "bad"],
+    ["If everyone contacted", fmt(s.profit_if_everyone_contacted), s.profit_if_everyone_contacted >= 0 ? "good" : "bad"],
+    ["Gain vs everyone", (delta >= 0 ? "+" : "") + fmt(delta), delta >= 0 ? "good" : "bad"],
+    ["Holdout", fmt(s.holdout) + (s.minimum_detectable_effect_pp ? ` · MDE ${fmt(s.minimum_detectable_effect_pp, 1)} pp` : ""), ""],
+  ].map(([k, v, c]) => `<div class="card"><div class="k">${k}</div><div class="v ${c}">${v}</div></div>`).join("");
+  chart(p);
+  const top = p.clients.slice(0, 15);
+  $("table").querySelector("tbody").innerHTML = top.map(c =>
+    `<tr><td>${c.client_id ?? "–"}</td><td><span class="tag ${c.group}">${c.group}</span></td>` +
+    `<td>${fmt(c.expected_effect_pp, 2)}</td><td>${fmt(c.expected_profit, 2)}</td></tr>`).join("");
+  $("download").disabled = false;
+}
+
+function chart(p) {
+  const W = 640, H = 260, L = 56, R = 12, T = 12, B = 34;
+  const pts = [[0, 0]]; let cum = 0;
+  p.clients.forEach((c, i) => { cum += c.expected_profit; pts.push([(i + 1) / p.clients.length, cum]); });
+  const ys = pts.map(q => q[1]).concat([p.summary.profit_if_everyone_contacted, 0]);
+  const ymin = Math.min(...ys), ymax = Math.max(...ys), pad = (ymax - ymin) * 0.08 || 1;
+  const x = v => L + v * (W - L - R), y = v => T + (ymax + pad - v) / (ymax - ymin + 2 * pad) * (H - T - B);
+  const path = pts.map((q, i) => (i ? "L" : "M") + x(q[0]).toFixed(1) + "," + y(q[1]).toFixed(1)).join("");
+  const best = pts.reduce((a, b) => (b[1] > a[1] ? b : a));
+  const ticksY = [ymin, (ymin + ymax) / 2, ymax].map(v => `<text class="tick" x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${fmt(v)}</text>`).join("");
+  const ticksX = [0, .25, .5, .75, 1].map(v => `<text class="tick" x="${x(v)}" y="${H - 12}" text-anchor="middle">${v * 100}%</text>`).join("");
+  $("chart").innerHTML = `
+    <line class="axis" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/>
+    <line x1="${L}" x2="${W - R}" y1="${y(p.summary.profit_if_everyone_contacted)}" y2="${y(p.summary.profit_if_everyone_contacted)}"
+          stroke="var(--bad)" stroke-dasharray="5 4" stroke-width="1.2"/>
+    <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.4"/>
+    <circle cx="${x(best[0])}" cy="${y(best[1])}" r="5.5" fill="var(--good)"/>
+    <text class="tick" x="${Math.min(x(best[0]) + 8, W - 120)}" y="${y(best[1]) - 8}">best: ${Math.round(best[0] * 100)}% · ${fmt(best[1])}</text>
+    ${ticksY}${ticksX}`;
+}
+
+$("download").onclick = () => {
+  if (!lastPlan) return;
+  const rows = [["client_id", "group", "expected_effect_pp", "expected_profit"]].concat(
+    lastPlan.clients.map(c => [c.client_id ?? "", c.group, c.expected_effect_pp, c.expected_profit]));
+  const blob = new Blob([rows.map(r => r.join(",")).join("\n")], { type: "text/csv" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "campaign_plan.csv"; a.click();
+};
+
+fetch("/health").then(r => r.json()).then(h => {
+  const m = h.test_metrics;
+  $("footer").innerHTML = `Logistic T-learner trained on ${h.trained_on}. Held-out test: +${m.uplift_top10_pp} pp purchase rate in the
+    top 10% vs +${m.test_ate_pp} pp campaign average. <a href="/docs">API docs</a> · <a href="/health">health</a>`;
+}).catch(() => {});
+</script>
+</body>
+</html>

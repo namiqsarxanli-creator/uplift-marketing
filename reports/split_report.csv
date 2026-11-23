@@ -1,0 +1,4 @@
+split,clients,treated_share,rate_control,rate_treatment,ate_pp,max_abs_smd,worst_covariate
+train,120023,0.4998,0.6033,0.6365,3.3229,0.0094,total_spend
+valid,40008,0.4998,0.6033,0.6365,3.3227,0.0138,avg_basket
+test,40008,0.4998,0.6033,0.6365,3.3239,0.0241,card_age_days
